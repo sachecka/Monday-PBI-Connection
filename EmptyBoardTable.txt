@@ -1,0 +1,14 @@
+let
+	/* This empty table will be returned if there is no data returned by the API*/
+    Source = () =>
+let
+  Source = #table(
+    {"Column1.items_page.cursor","id","name","Group", "Subitems", "!", "TITLE", "Hubspot ID", "BRAND", "SALES", "NEW/REVISIONS", "Temp/Perm", "OP VALUE", "REQUEST DATE", "DUE DATE", "LEAD", "EST LEAD", "STATUS", "LEAD TIME", "COMPLETED", "DELIVERABLE", "STD DATE", "WIN/LOSS", "OTIF Notes" ,"Timeline", "DR Score", "DR Score Context"},
+    {
+      {Text.From(null),"","", "", "", "", "", "", "", "", "", "", "", "", "","","", "", "", "", "", "", "", "", "", "", ""}
+    }
+  )
+in
+  Source
+in
+    Source

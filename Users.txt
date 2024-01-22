@@ -1,0 +1,25 @@
+let
+    MondayQuery = "{""query"": ""query {users (limit:500) {created_at email id name}}"" }",
+    Source = Web.Contents("https://api.monday.com/", 
+        [
+            RelativePath="v2",
+            Headers=
+            [
+                #"Method"="POST", 
+                #"Content-Type"="application/json", 
+                #"Authorization"="abcdefgbgb.eyJ0aWQiOjI3MzY1NDQyMywiYWFpIjoxMSwidWlkIjoxMTc0MDc3LCJpYWQiOiIyMDIzLTA4LTA4VDAxOjAyOjUzLjI5M1oiLCJwZXIiOiJtZTp3cml0ZSIsImFjdGlkIjo0ODI0NTEsInJnbiI6InVzZTEifQ.GcNy5H92RwDE363j3rV6Bj1HK0Wh_ykxtpLeT1P0L5c", 
+                #"API-Version"="2023-10"
+            ],
+            Content=Text.ToBinary(MondayQuery)
+        ]
+        ),
+    #"JSON" = Json.Document(Source, 65001),
+    data = JSON[data],
+    #"Converted to Table" = Record.ToTable(data),
+    #"Expanded Value" = Table.ExpandListColumn(#"Converted to Table", "Value"),
+    #"Expanded Value1" = Table.ExpandRecordColumn(#"Expanded Value", "Value", {"created_at", "email", "id", "name"}, {"created_at", "email", "id", "name.1"}),
+    #"Renamed Columns" = Table.RenameColumns(#"Expanded Value1",{{"id", "UserID"}}),
+    #"Removed Columns" = Table.RemoveColumns(#"Renamed Columns",{"Name"}),
+    #"Renamed Columns1" = Table.RenameColumns(#"Removed Columns",{{"created_at", "Created At"}, {"email", "Email"}, {"name.1", "UserName"}})
+in
+    #"Renamed Columns1"

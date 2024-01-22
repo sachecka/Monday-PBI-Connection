@@ -1,0 +1,40 @@
+let
+    Source = (PageCursor as text) =>
+let
+    Monday2ndQuery1 = "{""query"": ""{next_items_page(cursor: \""",
+    Monday2ndQuery2 = PageCursor,
+	/*The below query gets the boards groups and items*/
+    Monday2ndQuery3 = "\"" limit: 500)  {cursor items {id name group {title} column_values {text value column {title} text}}}}""}",
+    MondayFull2ndQuery = Monday2ndQuery1 & Monday2ndQuery2 & Monday2ndQuery3,
+    Source2 = Web.Contents("https://api.monday.com/", 
+        [
+            RelativePath="v2",
+            Headers=
+            [
+                #"Method"="POST", 
+                #"Content-Type"="application/json", 
+                #"Authorization"="abcdefgbgb.eyJ0aWQiOjI3MzY1NDQyMywiYWFpIjoxMSwidWlkIjoxMTc0MDc3LCJpYWQiOiIyMDIzLTA4LTA4VDAxOjAyOjUzLjI5M1oiLCJwZXIiOiJtZTp3cml0ZSIsImFjdGlkIjo0ODI0NTEsInJnbiI6InVzZTEifQ.GcNy5H92RwDE363j3rV6Bj1HK0Wh_ykxtpLeT1P0L5c", 
+                #"API-Version"="2023-10"
+            ],
+            Content=Text.ToBinary(MondayFull2ndQuery)
+        ]
+        ),
+    #"2ndJSON" = Json.Document(Source2, 65001),
+    data = #"2ndJSON"[data],
+    #"Converted to Table" = Record.ToTable(data),
+    #"Expanded Value" = Table.ExpandRecordColumn(#"Converted to Table", "Value", {"cursor", "items"}, {"cursor", "items"}),
+    #"Expanded items" = Table.ExpandListColumn(#"Expanded Value", "items"),
+    #"Expanded items1" = Table.ExpandRecordColumn(#"Expanded items", "items", {"id", "name", "group", "column_values"}, {"id", "name.1", "group", "column_values"}),
+    #"Expanded group" = Table.ExpandRecordColumn(#"Expanded items1", "group", {"title"}, {"title"}),
+    #"Renamed Columns" = Table.RenameColumns(#"Expanded group",{{"title", "Group"}}),
+    #"Expanded column_values" = Table.ExpandListColumn(#"Renamed Columns", "column_values"),
+    #"Expanded column_values1" = Table.ExpandRecordColumn(#"Expanded column_values", "column_values", {"text", "value", "column"}, {"text", "value", "column"}),
+    #"Expanded column" = Table.ExpandRecordColumn(#"Expanded column_values1", "column", {"title"}, {"title"}),
+    #"Added Custom" = Table.AddColumn(#"Expanded column", "text2", each if [title] = "LEAD" then Text.Replace(Text.Replace([value],"{""id"":",""),"}","") else [text]),
+    #"Removed Columns" = Table.RemoveColumns(#"Added Custom",{"Name", "text", "value"}),
+    #"Renamed Columns1" = Table.RenameColumns(#"Removed Columns",{{"text2", "text"}, {"name.1", "name"}, {"cursor", "Column1.items_page.cursor"}}),
+    #"Pivoted Column" = Table.Pivot(#"Renamed Columns1", List.Distinct(#"Renamed Columns1"[title]), "title", "text")
+in
+    #"Pivoted Column"
+in
+    Source

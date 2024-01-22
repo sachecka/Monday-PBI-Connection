@@ -1,0 +1,43 @@
+let
+    Source = (BoardID as number) =>
+let
+    MondayQuery1 = "{""query"": ""{boards(ids: ",
+    MondayQuery2 = Number.ToText(BoardID),
+	/*The below query gets the boards groups and items*/
+    MondayQuery3 = ") {items_page(limit: 500) {cursor items {id name group {title} column_values  {text value column {title}}}}}}""}",
+    MondayFullQuery = MondayQuery1 & MondayQuery2 & MondayQuery3,
+    Source = Web.Contents("https://api.monday.com/", 
+        [
+            RelativePath="v2",
+            Headers=
+            [
+                #"Method"="POST", 
+                #"Content-Type"="application/json", 
+                #"Authorization"="abcdefgbgb.eyJ0aWQiOjI3MzY1NDQyMywiYWFpIjoxMSwidWlkIjoxMTc0MDc3LCJpYWQiOiIyMDIzLTA4LTA4VDAxOjAyOjUzLjI5M1oiLCJwZXIiOiJtZTp3cml0ZSIsImFjdGlkIjo0ODI0NTEsInJnbiI6InVzZTEifQ.GcNy5H92RwDE363j3rV6Bj1HK0Wh_ykxtpLeT1P0L5c", 
+                #"API-Version"="2023-10"
+            ],
+            Content=Text.ToBinary(MondayFullQuery)
+        ]
+        ),
+    #"JSON" = Json.Document(Source, 65001),
+    data = JSON[data],
+    boards = data[boards],
+    #"Converted to Table" = Table.FromList(boards, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+    #"Expanded Column1" = Table.ExpandRecordColumn(#"Converted to Table", "Column1", {"items_page"}, {"Column1.items_page"}),
+    #"Expanded Column1.items_page" = Table.ExpandRecordColumn(#"Expanded Column1", "Column1.items_page", {"cursor", "items"}, {"Column1.items_page.cursor", "Column1.items_page.items"}),
+    #"Expanded Column1.items_page.items2" = Table.ExpandListColumn(#"Expanded Column1.items_page", "Column1.items_page.items"),
+    #"Expanded Column1.items_page.items3" = Table.ExpandRecordColumn(#"Expanded Column1.items_page.items2", "Column1.items_page.items", {"id", "name", "group", "column_values"}, {"id", "name", "group", "column_values"}),
+    #"Expanded Column1.items_page.items.group" = Table.ExpandRecordColumn(#"Expanded Column1.items_page.items3", "group", {"title"}, {"title"}),
+    #"Renamed Columns1" = Table.RenameColumns(#"Expanded Column1.items_page.items.group",{{"title", "Group"}}),
+    #"Expanded Column1.items_page.items.column_values" = Table.ExpandListColumn(#"Renamed Columns1", "column_values"),
+    #"Expanded Column1.items_page.items.column_values1" = Table.ExpandRecordColumn(#"Expanded Column1.items_page.items.column_values", "column_values", {"text", "value", "column"}, {"text", "value", "column"}),
+    #"Expanded column1" = Table.ExpandRecordColumn(#"Expanded Column1.items_page.items.column_values1", "column", {"title"}, {"title.1"}),
+	/* Had to extract information from the value column to get the User ID as the text was missing. In the board, for the LEAD column you can select the users of the board and API was not returning user name. */
+    #"Added Custom" = Table.AddColumn(#"Expanded column1", "text2", each if [title.1] = "LEAD" then Text.Replace(Text.Replace([value],"{""id"":",""),"}","") else [text]),
+    #"Removed Columns" = Table.RemoveColumns(#"Added Custom",{"value", "text"}),
+    #"Renamed Columns" = Table.RenameColumns(#"Removed Columns",{{"text2", "text"}}),
+    #"Pivoted Column" = Table.Pivot(#"Renamed Columns", List.Distinct(#"Renamed Columns"[title.1]), "title.1", "text")
+in
+    #"Pivoted Column"
+in
+    Source
